@@ -7,9 +7,13 @@ import {
   FlatList,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import firebase from "../database/firebaseDB";
+
 
 export default function NotesScreen({ navigation, route }) {
   const [notes, setNotes] = useState([]);
+
+
 
   // This is to set up the top right button
   useEffect(() => {
@@ -38,9 +42,22 @@ export default function NotesScreen({ navigation, route }) {
         done: false,
         id: notes.length.toString(),
       };
-      setNotes([...notes, newNote]);
+      firebase.firestore().collection("todos").add(newNote);
     }
   }, [route.params?.text]);
+  
+  useEffect(() =>{
+    const unsubscribe = firebase
+    .firestore()
+    .collection("todos")
+    .onSnapshot((collection) => {
+      const updatedNotes = collection.docs.map((doc)=> doc.data());
+      setNotes(updatedNotes);
+    });
+
+    return () => unsubscribe();
+  }, []);
+  
 
   function addNote() {
     navigation.navigate("Add Screen");
@@ -51,6 +68,12 @@ export default function NotesScreen({ navigation, route }) {
     console.log("Deleting " + id);
     // To delete that item, we filter out the item we don't want
     setNotes(notes.filter((item) => item.id !== id));
+    firebase.firestore().collection('todos')
+    .where('id', '==', id)
+    .get()
+    .then((docs) => {
+      docs.forEach((doc) => doc.ref.delete());
+    });
   }
 
   // The function to render each row in our FlatList
